@@ -835,6 +835,18 @@ func BenchmarkLogParallel(b *testing.B) {
 	})
 }
 
+func BenchmarkPrintfParallel(b *testing.B) {
+	w = bufio.NewWriter(ioutil.Discard)
+	args := []interface{}{int64(1), "string", uint32(2), uint32(3)}
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Printf("foo thing bar thing %i64. Fubar %s foo. sadfasdf %u32 sdfasfasdfasdffds %u32.", args...)
+		}
+	})
+}
+
 func BenchmarkLogSequential(b *testing.B) {
 	w = bufio.NewWriter(ioutil.Discard)
 	h := AddLogger("foo thing bar thing %i64. Fubar %s foo. sadfasdf %u32 sdfasfasdfasdffds %u32.")
@@ -846,7 +858,26 @@ func BenchmarkLogSequential(b *testing.B) {
 	}
 }
 
-func BenchmarkCompareToStdlib(b *testing.B) {
+func BenchmarkPrintfSequential(b *testing.B) {
+	w = bufio.NewWriter(ioutil.Discard)
+	args := []interface{}{int64(1), "string", uint32(2), uint32(3)}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Printf("foo thing bar thing %i64. Fubar %s foo. sadfasdf %u32 sdfasfasdfasdffds %u32.", args...)
+	}
+}
+
+func BenchmarkComparePrintfAndLogAndStdlib(b *testing.B) {
+	b.Run("NanologPrintf", func(b *testing.B) {
+		w = bufio.NewWriter(ioutil.Discard)
+		args := []interface{}{int64(1), "string", uint32(2), uint32(3)}
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			Printf("foo thing bar thing %i64. Fubar %s foo. sadfasdf %u32 sdfasfasdfasdffds %u32.", args...)
+		}
+	})
 	b.Run("Nanolog", func(b *testing.B) {
 		w = bufio.NewWriter(ioutil.Discard)
 		h := AddLogger("foo thing bar thing %i64. Fubar %s foo. sadfasdf %u32 sdfasfasdfasdffds %u32.")

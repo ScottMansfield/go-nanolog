@@ -172,11 +172,16 @@ var (
 	firstSet = true
 )
 
+var (
+	loggersMap    = make(map[string]Handle)
+	loggersMapMtx = &sync.RWMutex{}
+)
+
 // SetWriter will set up efficient writing for the log to the output stream given.
 // A raw IO stream is best. The first time SetWriter is called any logs that were
 // created or posted before the call will be sent to the writer all in one go.
 func SetWriter(new io.Writer) error {
-	// grab write lock to ensure no prblems
+	// grab write lock to ensure no problems
 	writeLock.Lock()
 	defer writeLock.Unlock()
 
@@ -198,7 +203,7 @@ func SetWriter(new io.Writer) error {
 
 // Flush ensures all log entries written up to this point are written to the underlying io.Writer
 func Flush() error {
-	// grab write lock to ensure no prblems
+	// grab write lock to ensure no problems
 	writeLock.Lock()
 	defer writeLock.Unlock()
 
@@ -214,12 +219,26 @@ func AddLogger(fmt string) Handle {
 		panic("Too many loggers")
 	}
 
+	loggersMapMtx.Lock()
 	l, segs := parseLogLine(fmt)
 	loggers[idx] = l
 
 	writeLogDataToFile(idx, l.Kinds, segs)
 
+	loggersMap[fmt] = Handle(idx)
+	loggersMapMtx.Unlock()
+
 	return Handle(idx)
+}
+
+func GetLogger(fmt string) Handle {
+	loggersMapMtx.RLock()
+	h, ok := loggersMap[fmt]
+	loggersMapMtx.RUnlock()
+	if !ok {
+		h = AddLogger(fmt)
+	}
+	return h
 }
 
 func parseLogLine(gold string) (Logger, []string) {
@@ -618,4 +637,9 @@ func Log(handle Handle, args ...interface{}) error {
 
 	bufpool.Put(buf)
 	return err
+}
+
+func Printf(message string, args ...interface{}) error {
+	logger := GetLogger(message)
+	return Log(logger, args...)
 }
